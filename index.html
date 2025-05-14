@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>醫療室記錄系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-5xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <!-- 標題 -->
+    <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">醫療室記錄系統</h1>
+
+    <!-- 醫療室記錄表單 -->
+    <div class="space-y-4 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="classInput" class="block text-sm font-medium text-gray-700">班級 (例如：1A)</label>
+          <input type="text" id="classInput" placeholder="輸入班級" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="lookupStudent()">
+        </div>
+        <div>
+          <label for="classNoInput" class="block text-sm font-medium text-gray-700">班號 (例如：1)</label>
+          <input type="text" id="classNoInput" placeholder="輸入班號" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="lookupStudent()">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">學生姓名</label>
+        <p id="studentName" class="mt-1 p-2 border border-gray-300 rounded-md bg-gray-100">輸入班級及班號以顯示學生姓名</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="dateInput" class="block text-sm font-medium text-gray-700">日期</label>
+          <input type="text" id="dateInput" readonly class="mt-1 w-full p-2 border border-gray-300 rounded-md bg-gray-100" value="14/05/2025">
+        </div>
+        <div>
+          <label for="timeInput" class="block text-sm font-medium text-gray-700">時間 (例如：11:28 上午)</label>
+          <input type="text" id="timeInput" placeholder="輸入時間" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+      </div>
+      <div>
+        <label for="symptomsInput" class="block text-sm font-medium text-gray-700">病徵</label>
+        <input type="text" id="symptomsInput" placeholder="輸入病徵 (例如：發燒、頭痛)" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label for="treatmentInput" class="block text-sm font-medium text-gray-700">初步處理</label>
+        <input type="text" id="treatmentInput" placeholder="輸入初步處理 (例如：給予撲熱息痛)" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label for="followUpInput" class="block text-sm font-medium text-gray-700">跟進情況</label>
+        <input type="text" id="followUpInput" placeholder="輸入跟進情況 (例如：送回家)" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label for="remarksInput" class="block text-sm font-medium text-gray-700">備註</label>
+        <textarea id="remarksInput" placeholder="輸入額外備註" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4"></textarea>
+      </div>
+      <button id="addRecordButton" class="w-full bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition">添加記錄</button>
+    </div>
+
+    <!-- 結果提示 -->
+    <div id="result" class="mb-6 text-center text-gray-500">正在載入學生資料...</div>
+
+    <!-- 記錄表格 -->
+    <div class="overflow-x-auto mb-8">
+      <table id="recordsTable" class="w-full table-auto border-collapse">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="p-2 text-left text-sm font-medium text-gray-700">日期</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">時間</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">班級</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">班號</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">中文姓名</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">英文姓名</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">病徵</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">初步處理</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">跟進情況</th>
+            <th class="p-2 text-left text-sm font-medium text-gray-700">備註</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 今日醫療室訪客標籤 -->
+    <div>
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">今日醫療室訪客</h2>
+      <div id="dailyTags" class="flex flex-wrap gap-2"></div>
+    </div>
+  </div>
+
+  <script>
+    // 初始化狀態
+    let studentData = [];
+    let isDataLoaded = false;
+    const records = JSON.parse(localStorage.getItem('medicalRecords')) || [];
+    const GOOGLE_FORM_ACTION = 'https://docs.google.com/forms/u/0/d/1jVOxO4GwW1JXm3-JZk7dK_V9R-nxGme6F6fIgRmGjm8/previewResponse'; // 替換為您的 Google 表單 Action URL
+    const FORM_FIELDS = {
+      date: 'entry.1234567890', // 替換為實際的日期 entry ID
+      time: 'entry.0987654321', // 替換為實際的時間 entry ID
+      class: 'entry.622815558',
+      classNo: 'entry.923892826',
+      cname: 'entry.1103762064',
+      symptoms: 'entry.1615936902',
+      treatment: 'entry.6667778888',
+      followUp: 'entry.9990001111',
+      remarks: 'entry.2223334444'
+    };
+
+    // 獲取今日日期
+    function getTodayDate() {
+      const now = new Date();
+      const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Hong_Kong' };
+      return now.toLocaleDateString('en-GB', options).replace(/\//g, '/');
+    }
+
+    // 載入並解析 CSV 數據
+    const csvData = loadFileData('https://aesthetic-khapse-a48df4.netlify.app/2324 to 2425 Student List.csv');
+    Papa.parse(csvData, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: header => header.trim().replace(/^"|"$/g, ''),
+      transform: (value, header) => value.trim().replace(/^"|"$/g, ''),
+      complete: (results) => {
+        studentData = results.data.map(row => ({
+          Y2425: row['Y2425'] ? row['Y2425'].trim() : '',
+          N2425: row['N2425'] ? row['N2425'].trim() : '',
+          CNAME: row['CNAME'] ? row['CNAME'].trim() : '',
+          ENAME: row['ENAME'] ? row['ENAME'].trim() : ''
+        }));
+        isDataLoaded = true;
+        document.getElementById('result').innerHTML = '請輸入資料以添加醫療室記錄。';
+        renderRecords();
+        renderDailyTags();
+      },
+      error: (err) => {
+        console.error('載入 CSV 錯誤:', err);
+        document.getElementById('result').innerHTML = '<p class="text-red-500">載入學生資料失敗。</p>';
+      }
+    });
+
+    // 查找學生
+    function lookupStudent() {
+      if (!isDataLoaded) return;
+      const classInput = document.getElementById('classInput').value.trim().toUpperCase();
+      const classNoInput = document.getElementById('classNoInput').value.trim();
+      const studentNameDisplay = document.getElementById('studentName');
+
+      if (!classInput || !classNoInput) {
+        studentNameDisplay.textContent = '輸入班級及班號以顯示學生姓名';
+        studentNameDisplay.classList.remove('text-green-600', 'font-semibold', 'text-red-500');
+        return;
+      }
+
+      const student = studentData.find(row => 
+        row.Y2425.toUpperCase() === classInput && 
+        row.N2425 === classNoInput
+      );
+
+      if (student && student.CNAME && student.ENAME) {
+        studentNameDisplay.textContent = `${student.CNAME} (${student.ENAME})`;
+        studentNameDisplay.classList.remove('text-gray-500', 'text-red-500');
+        studentNameDisplay.classList.add('text-green-600', 'font-semibold');
+      } else {
+        studentNameDisplay.textContent = '找不到學生';
+        studentNameDisplay.classList.remove('text-green-600', 'font-semibold');
+        studentNameDisplay.classList.add('text-red-500');
+      }
+    }
+
+    // 渲染記錄表格
+    function renderRecords() {
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = '';
+      records.forEach(record => {
+        const row = document.createElement('tr');
+        row.className = 'border-t';
+        row.innerHTML = `
+          <td class="p-2 text-sm">${record.date}</td>
+          <td class="p-2 text-sm">${record.time}</td>
+          <td class="p-2 text-sm">${record.class}</td>
+          <td class="p-2 text-sm">${record.classNo}</td>
+          <td class="p-2 text-sm">${record.cname}</td>
+          <td class="p-2 text-sm">${record.ename}</td>
+          <td class="p-2 text-sm">${record.symptoms}</td>
+          <td class="p-2 text-sm">${record.treatment}</td>
+          <td class="p-2 text-sm">${record.followUp}</td>
+          <td class="p-2 text-sm">${record.remarks}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // 渲染今日標籤
+    function renderDailyTags() {
+      const today = getTodayDate();
+      const dailyRecords = records.filter(record => record.date === today);
+      const dailyTags = document.getElementById('dailyTags');
+      dailyTags.innerHTML = '';
+      dailyRecords.forEach(record => {
+        const tag = document.createElement('span');
+        tag.className = 'inline-block bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full';
+        tag.textContent = `${record.class} ${record.cname}`;
+        dailyTags.appendChild(tag);
+      });
+      if (dailyRecords.length === 0) {
+        dailyTags.innerHTML = '<p class="text-gray-500">今日無學生到訪醫療室。</p>';
+      }
+    }
+
+    // 提交到 Google 表單
+    function submitToGoogleForm(record) {
+      const formData = new FormData();
+      formData.append(FORM_FIELDS.date, record.date);
+      formData.append(FORM_FIELDS.time, record.time);
+      formData.append(FORM_FIELDS.class, record.class);
+      formData.append(FORM_FIELDS.classNo, record.classNo);
+      formData.append(FORM_FIELDS.cname, record.cname);
+      formData.append(FORM_FIELDS.ename, record.ename);
+      formData.append(FORM_FIELDS.symptoms, record.symptoms);
+      formData.append(FORM_FIELDS.treatment, record.treatment);
+      formData.append(FORM_FIELDS.followUp, record.followUp);
+      formData.append(FORM_FIELDS.remarks, record.remarks);
+
+      fetch(GOOGLE_FORM_ACTION, {
+        method: 'POST',
+        body: formData,
+        mode: 'no-cors'
+      }).then(() => {
+        console.log('已提交至 Google 表單');
+      }).catch(err => {
+        console.error('提交 Google 表單失敗:', err);
+      });
+    }
+
+    // 處理添加記錄按鈕
+    document.getElementById('addRecordButton').addEventListener('click', () => {
+      if (!isDataLoaded) {
+        document.getElementById('result').innerHTML = '<p class="text-red-500">資料仍在載入，請稍候。</p>';
+        return;
+      }
+
+      // 獲取輸入值
+      const classInput = document.getElementById('classInput').value.trim().toUpperCase();
+      const classNoInput = document.getElementById('classNoInput').value.trim();
+      const timeInput = document.getElementById('timeInput').value.trim();
+      const symptomsInput = document.getElementById('symptomsInput').value.trim();
+      const treatmentInput = document.getElementById('treatmentInput').value.trim();
+      const followUpInput = document.getElementById('followUpInput').value.trim();
+      const remarksInput = document.getElementById('remarksInput').value.trim();
+      const date = getTodayDate();
+
+      // 驗證輸入
+      if (!classInput || !classNoInput || !timeInput || !symptomsInput || !treatmentInput || !followUpInput) {
+        document.getElementById('result').innerHTML = '<p class="text-red-500">請填寫所有必填欄位。</p>';
+        return;
+      }
+
+      // 查找學生
+      const student = studentData.find(row => 
+        row.Y2425.toUpperCase() === classInput && 
+        row.N2425 === classNoInput
+      );
+
+      if (!student || !student.CNAME || !student.ENAME) {
+        document.getElementById('result').innerHTML = `<p class="text-red-500">找不到班級 ${classInput} 班號 ${classNoInput} 的學生。</p>`;
+        return;
+      }
+
+      // 創建記錄
+      const record = {
+        date,
+        time: timeInput,
+        class: classInput,
+        classNo: classNoInput,
+        cname: student.CNAME,
+        ename: student.ENAME,
+        symptoms: symptomsInput,
+        treatment: treatmentInput,
+        followUp: followUpInput,
+        remarks: remarksInput
+      };
+
+      // 保存到 localStorage
+      records.push(record);
+      localStorage.setItem('medicalRecords', JSON.stringify(records));
+
+      // 提交到 Google 表單
+      submitToGoogleForm(record);
+
+      // 更新介面
+      renderRecords();
+      renderDailyTags();
+
+      // 清空表單
+      document.getElementById('classInput').value = '';
+      document.getElementById('classNoInput').value = '';
+      document.getElementById('timeInput').value = '';
+      document.getElementById('symptomsInput').value = '';
+      document.getElementById('treatmentInput').value = '';
+      document.getElementById('followUpInput').value = '';
+      document.getElementById('remarksInput').value = '';
+      document.getElementById('studentName').textContent = '輸入班級及班號以顯示學生姓名';
+      document.getElementById('studentName').classList.remove('text-green-600', 'font-semibold', 'text-red-500');
+      document.getElementById('result').innerHTML = '<p class="text-green-600">記錄已成功添加！</p>';
+    });
+  </script>
+</body>
+</html>
